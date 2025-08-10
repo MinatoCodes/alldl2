@@ -1,0 +1,14 @@
+{
+  "name": "all-downloader-api",
+  "version": "1.0.0",
+  "description": "Universal downloader API endpoint for multiple platforms",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2"
+  },
+  "author": "MinatoCodes",
+  "license": "MIT"
+}
