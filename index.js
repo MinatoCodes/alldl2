@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     // backend path + extractor for each platform
     const platforms = {
       youtube: {
-        path: "ytdl",
+        path: "youtube",
         extract: d => {
           // support mp4 (string), mp4 array, or url fields
           if (!d) return null;
