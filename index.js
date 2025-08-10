@@ -1,6 +1,13 @@
 const axios = require("axios");
 
 module.exports = async (req, res) => {
+  // CORS headers so it works in browsers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") return res.status(200).end();
+
   try {
     const url = req.query.url;
     if (!url) {
@@ -12,14 +19,14 @@ module.exports = async (req, res) => {
 
     const base = "https://backend1.tioo.eu.org";
 
-    // Platform patterns and their API paths
+    // Platform patterns & paths
     const platforms = [
-      { name: "tiktok",    regex: /tiktok\.com/,               path: "ttdl",    getUrl: d => d.video?.[0] },
-      { name: "twitter",   regex: /twitter\.com|x\.com/,       path: "twitter", getUrl: d => d.url?.[0]?.hd || d.url?.[0]?.sd },
-      { name: "gdrive",    regex: /drive\.google\.com/,        path: "gdrive",  getUrl: d => d.data?.downloadUrl },
-      { name: "facebook",  regex: /facebook\.com|fb\.watch/,   path: "fbdown",  getUrl: d => d.hd || d.sd },
-      { name: "instagram", regex: /instagram\.com/,            path: "igdl",    getUrl: d => d.video?.[0] },
-      { name: "youtube",   regex: /youtube\.com|youtu\.be/,    path: "youtube",    getUrl: d => d.url?.[0] }
+      { name: "tiktok", regex: /tiktok\.com/, path: "ttdl" },
+      { name: "twitter", regex: /twitter\.com|x\.com/, path: "tweetdl" },
+      { name: "gdrive", regex: /drive\.google\.com/, path: "gdrive" },
+      { name: "facebook", regex: /facebook\.com|fb\.watch/, path: "fbdown" },
+      { name: "instagram", regex: /instagram\.com/, path: "igdl" },
+      { name: "youtube", regex: /youtube\.com|youtu\.be/, path: "ytdl" }
     ];
 
     // Detect platform
@@ -31,17 +38,28 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Build API URL
     const apiUrl = `${base}/${match.path}?url=${encodeURIComponent(url)}`;
 
-    // Fetch data from backend
     const response = await axios.get(apiUrl, {
       headers: { "User-Agent": "Mozilla/5.0" }
     });
 
-    const downloadUrl = match.getUrl(response.data);
+    const data = response.data;
 
-    if (!downloadUrl) {
+    // Recursively collect all URLs from the object
+    const urls = [];
+    function collectUrls(obj) {
+      if (typeof obj === "string") {
+        if (/^https?:\/\/.+/.test(obj)) urls.push(obj);
+      } else if (Array.isArray(obj)) {
+        obj.forEach(collectUrls);
+      } else if (typeof obj === "object" && obj !== null) {
+        Object.values(obj).forEach(collectUrls);
+      }
+    }
+    collectUrls(data);
+
+    if (urls.length === 0) {
       return res.status(500).json({
         success: false,
         error: "Unable to extract video URL"
@@ -52,7 +70,7 @@ module.exports = async (req, res) => {
       success: true,
       creator: "MinatoCodes",
       platform: match.name,
-      download_url: downloadUrl
+      download_urls: urls
     });
 
   } catch (err) {
