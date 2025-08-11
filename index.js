@@ -1,21 +1,25 @@
 const axios = require("axios");
-const FormData = require("form-data");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 module.exports = async (req, res) => {
-  // CORS
+  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
+    // Platform detection
     let platform = (req.query.platform || "").toString().trim().toLowerCase() || null;
     const url = req.query.url;
+
     if (!url) {
       return res.status(400).json({ success: false, error: "Missing 'url' parameter" });
     }
 
-    // Patterns for auto-detection
+    // Regex patterns for auto-detect
     const patterns = {
       youtube: /(?:youtube\.com|youtu\.be)/i,
       twitter: /(?:twitter\.com|x\.com)/i,
@@ -25,7 +29,7 @@ module.exports = async (req, res) => {
       gdrive: /drive\.google\.com/i
     };
 
-    // Backend path & extractor for each platform
+    // Platform backend paths + extractors
     const platforms = {
       youtube: {
         path: "youtube",
@@ -46,7 +50,7 @@ module.exports = async (req, res) => {
           if (Array.isArray(d.url) && d.url.length) {
             const first = d.url[0];
             if (first && typeof first === "object") return first.hd || first.sd || null;
-            if (typeof first === "string") return first;
+            if (typeof d.url[0] === "string") return d.url[0];
           }
           if (d.url && typeof d.url === "object") return d.url.hd || d.url.sd || null;
           return null;
@@ -98,7 +102,7 @@ module.exports = async (req, res) => {
       }
     };
 
-    // Detect platform if not given
+    // Auto-detect platform if not provided
     if (!platform) {
       for (const key of Object.keys(patterns)) {
         if (patterns[key].test(url)) {
@@ -107,50 +111,52 @@ module.exports = async (req, res) => {
         }
       }
     }
+
     if (!platform || !platforms[platform]) {
       return res.status(400).json({ success: false, error: "Unsupported or undetectable platform" });
     }
 
     const selected = platforms[platform];
     const apiUrl = `https://backend1.tioo.eu.org/${selected.path}?url=${encodeURIComponent(url)}`;
-    const backendRes = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-    const downloadUrl = selected.extract(backendRes.data);
+
+    // Fetch backend data
+    const response = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
+    const data = response.data;
+    const downloadUrl = selected.extract(data);
 
     if (!downloadUrl) {
       return res.status(404).json({ success: false, error: "Unable to extract video URL" });
     }
 
-    // YouTube special handling: stream to Catbox
+    // Special handling for YouTube → download & upload to transfer.sh
     if (platform === "youtube") {
-      const ytStream = await axios({
-        method: "GET",
-        url: downloadUrl,
-        responseType: "stream",
-        headers: { "User-Agent": "Mozilla/5.0" }
+      const tempFile = path.join(os.tmpdir(), `ytvideo-${Date.now()}.mp4`);
+      const writer = fs.createWriteStream(tempFile);
+
+      const videoStream = await axios.get(downloadUrl, { responseType: "stream" });
+      await new Promise((resolve, reject) => {
+        videoStream.data.pipe(writer);
+        writer.on("finish", resolve);
+        writer.on("error", reject);
       });
 
-      const form = new FormData();
-      form.append("reqtype", "fileupload");
-      form.append("fileToUpload", ytStream.data, { filename: "video.mp4" });
-
-      const catboxRes = await axios.post("https://catbox.moe/user/api.php", form, {
-        headers: {
-          ...form.getHeaders(),
-          "User-Agent": "Mozilla/5.0"
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
+      const fileName = path.basename(tempFile);
+      const uploadStream = fs.createReadStream(tempFile);
+      const uploadResponse = await axios.put(`https://transfer.sh/${fileName}`, uploadStream, {
+        headers: { "Content-Type": "application/octet-stream" }
       });
+
+      fs.unlink(tempFile, () => {}); // Clean up
 
       return res.json({
         success: true,
         creator: "MinatoCodes",
         platform,
-        catbox_url: catboxRes.data
+        transfer_url: uploadResponse.data
       });
     }
 
-    // Other platforms → return direct URL
+    // Default return for other platforms
     return res.json({
       success: true,
       creator: "MinatoCodes",
@@ -163,4 +169,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-  
+            
