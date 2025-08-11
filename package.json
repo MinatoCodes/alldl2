@@ -1,15 +1,16 @@
 {
-  "name": "all-downloader-api",
+  "name": "all-dl-api",
   "version": "1.0.0",
-  "description": "Universal downloader API endpoint for multiple platforms",
+  "description": "All-in-one downloader API for YouTube, Twitter, TikTok, Facebook, Instagram, Google Drive",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.7.2",
-    "form-data": "^4.0.0"
+    "axios": "^1.7.0",
+    "ytdl-core": "^4.11.5"
   },
-  "author": "MinatoCodes",
-  "license": "MIT"
+  "engines": {
+    "node": ">=16"
+  }
 }
