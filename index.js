@@ -2,6 +2,7 @@ const axios = require("axios");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const ytdl = require("ytdl-core");
 
 module.exports = async (req, res) => {
   // CORS
@@ -18,6 +19,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing 'url' parameter" });
     }
 
+    // Regex patterns for auto-detection
     const patterns = {
       youtube: /(?:youtube\.com|youtu\.be)/i,
       twitter: /(?:twitter\.com|x\.com)/i,
@@ -27,6 +29,7 @@ module.exports = async (req, res) => {
       gdrive: /drive\.google\.com/i
     };
 
+    // Extractor logic for each platform
     const platforms = {
       youtube: {
         path: "youtube",
@@ -99,6 +102,7 @@ module.exports = async (req, res) => {
       }
     };
 
+    // Auto-detect platform if not given
     if (!platform) {
       for (const key of Object.keys(patterns)) {
         if (patterns[key].test(url)) {
@@ -112,37 +116,15 @@ module.exports = async (req, res) => {
       return res.status(400).json({ success: false, error: "Unsupported or undetectable platform" });
     }
 
-    const selected = platforms[platform];
-    const apiUrl = `https://backend1.tioo.eu.org/${selected.path}?url=${encodeURIComponent(url)}`;
-
-    const response = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
-    const data = response.data;
-
-    const downloadUrl = selected.extract(data);
-
-    if (!downloadUrl) {
-      return res.status(404).json({ success: false, error: "Unable to extract video URL" });
-    }
-
-    // Special handling for YouTube: download → temp file → upload to transfer.sh
+    // Special handling for YouTube with ytdl-core
     if (platform === "youtube") {
       const tempFile = path.join(os.tmpdir(), `ytvideo-${Date.now()}.mp4`);
 
-      const videoStream = await axios.get(downloadUrl, {
-        responseType: "stream",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
-          "Accept": "*/*",
-          "Referer": "https://www.youtube.com/",
-          "Range": "bytes=0-"
-        }
-      });
-
       await new Promise((resolve, reject) => {
-        const writer = fs.createWriteStream(tempFile);
-        videoStream.data.pipe(writer);
-        writer.on("finish", resolve);
-        writer.on("error", reject);
+        ytdl(url, { quality: "highest" })
+          .pipe(fs.createWriteStream(tempFile))
+          .on("finish", resolve)
+          .on("error", reject);
       });
 
       const fileName = path.basename(tempFile);
@@ -152,7 +134,6 @@ module.exports = async (req, res) => {
       });
 
       fs.unlink(tempFile, () => {});
-
       return res.json({
         success: true,
         creator: "MinatoCodes",
@@ -161,7 +142,17 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Default for other platforms: just return extracted URL
+    // Other platforms → fetch from backend and extract URL
+    const selected = platforms[platform];
+    const apiUrl = `https://backend1.tioo.eu.org/${selected.path}?url=${encodeURIComponent(url)}`;
+    const response = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
+    const data = response.data;
+
+    const downloadUrl = selected.extract(data);
+    if (!downloadUrl) {
+      return res.status(404).json({ success: false, error: "Unable to extract video URL" });
+    }
+
     return res.json({
       success: true,
       creator: "MinatoCodes",
@@ -174,4 +165,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-      
+            
