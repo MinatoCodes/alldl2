@@ -11,7 +11,6 @@ module.exports = async (req, res) => {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    // Platform detection
     let platform = (req.query.platform || "").toString().trim().toLowerCase() || null;
     const url = req.query.url;
 
@@ -19,7 +18,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing 'url' parameter" });
     }
 
-    // Regex patterns for auto-detect
+    // Regex patterns to detect platform
     const patterns = {
       youtube: /(?:youtube\.com|youtu\.be)/i,
       twitter: /(?:twitter\.com|x\.com)/i,
@@ -29,7 +28,7 @@ module.exports = async (req, res) => {
       gdrive: /drive\.google\.com/i
     };
 
-    // Platform backend paths + extractors
+    // API backend paths + extractors
     const platforms = {
       youtube: {
         path: "youtube",
@@ -50,59 +49,37 @@ module.exports = async (req, res) => {
           if (Array.isArray(d.url) && d.url.length) {
             const first = d.url[0];
             if (first && typeof first === "object") return first.hd || first.sd || null;
-            if (typeof d.url[0] === "string") return d.url[0];
+            if (typeof first === "string") return first;
           }
-          if (d.url && typeof d.url === "object") return d.url.hd || d.url.sd || null;
+          if (d.hd) return d.hd;
+          if (d.sd) return d.sd;
           return null;
         }
       },
       tiktok: {
-        path: "ttdl",
-        extract: d => {
-          if (!d) return null;
-          if (Array.isArray(d.video) && d.video.length) return d.video[0];
-          if (typeof d.video === "string" && d.video) return d.video;
-          if (Array.isArray(d.url) && d.url.length) return d.url[0];
-          if (typeof d.url === "string" && d.url) return d.url;
-          return null;
-        }
+        path: "tiktok",
+        extract: d => d?.url || d?.play || null
       },
       facebook: {
-        path: "fbdown",
+        path: "facebook",
         extract: d => {
           if (!d) return null;
-          return d.HD || d.hd || d.Normal_video || d.Normal_Video || d.url || null;
+          if (d.hd) return d.hd;
+          if (d.sd) return d.sd;
+          return null;
         }
       },
       instagram: {
-        path: "igdl",
-        extract: d => {
-          if (!d) return null;
-          if (Array.isArray(d) && d.length) {
-            const first = d[0];
-            if (first) {
-              if (Array.isArray(first.video) && first.video.length) return first.video[0];
-              if (first.url) return first.url;
-            }
-          }
-          if (Array.isArray(d.video) && d.video.length) return d.video[0];
-          if (typeof d.url === "string" && d.url) return d.url;
-          if (Array.isArray(d.url) && d.url.length) return d.url[0];
-          return null;
-        }
+        path: "instagram",
+        extract: d => d?.url || null
       },
       gdrive: {
         path: "gdrive",
-        extract: d => {
-          if (!d) return null;
-          if (d.data && (d.data.downloadUrl || d.data.download)) return d.data.downloadUrl || d.data.download;
-          if (d.downloadUrl) return d.downloadUrl;
-          return null;
-        }
+        extract: d => d?.url || null
       }
     };
 
-    // Auto-detect platform if not provided
+    // Auto-detect platform if not given
     if (!platform) {
       for (const key of Object.keys(patterns)) {
         if (patterns[key].test(url)) {
@@ -118,8 +95,6 @@ module.exports = async (req, res) => {
 
     const selected = platforms[platform];
     const apiUrl = `https://backend1.tioo.eu.org/${selected.path}?url=${encodeURIComponent(url)}`;
-
-    // Fetch backend data
     const response = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
     const data = response.data;
     const downloadUrl = selected.extract(data);
@@ -128,11 +103,10 @@ module.exports = async (req, res) => {
       return res.status(404).json({ success: false, error: "Unable to extract video URL" });
     }
 
-    // Special handling for YouTube → download & upload to transfer.sh
+    // Special handling for YouTube: download -> upload to transfer.sh
     if (platform === "youtube") {
       const tempFile = path.join(os.tmpdir(), `ytvideo-${Date.now()}.mp4`);
       const writer = fs.createWriteStream(tempFile);
-
       const videoStream = await axios.get(downloadUrl, { responseType: "stream" });
       await new Promise((resolve, reject) => {
         videoStream.data.pipe(writer);
@@ -146,7 +120,7 @@ module.exports = async (req, res) => {
         headers: { "Content-Type": "application/octet-stream" }
       });
 
-      fs.unlink(tempFile, () => {}); // Clean up
+      fs.unlink(tempFile, () => {});
 
       return res.json({
         success: true,
@@ -156,7 +130,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Default return for other platforms
+    // Other platforms: direct link
     return res.json({
       success: true,
       creator: "MinatoCodes",
@@ -169,4 +143,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-            
+                      
