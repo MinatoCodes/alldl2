@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
     },
 
     instagram: {
-      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d) && d.length) {
