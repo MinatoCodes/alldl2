@@ -1,6 +1,4 @@
 const axios = require("axios");
-const baseUrl= "https://secret-alldl.vercel.app/api/alldl";
-
 module.exports = async (req, res) => {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
