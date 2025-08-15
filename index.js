@@ -1,4 +1,5 @@
 const axios = require("axios");
+const baseUrl= "https://secret-alldl.vercel.app/api/alldl";
 
 module.exports = async (req, res) => {
   // CORS
@@ -57,7 +58,7 @@ module.exports = async (req, res) => {
     },
 
     twitter: {
-      path: (videoUrl) => `https://backend1.tioo.eu.org/twitter?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.url) && d.url.length) {
@@ -71,7 +72,7 @@ module.exports = async (req, res) => {
     },
 
     tiktok: {
-      path: (videoUrl) => `https://backend1.tioo.eu.org/ttdl?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.video) && d.video.length) return d.video[0];
@@ -83,12 +84,12 @@ module.exports = async (req, res) => {
     },
 
     facebook: {
-      path: (videoUrl) => `https://backend1.tioo.eu.org/fbdown?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => d?.HD || d?.hd || d?.Normal_video || d?.Normal_Video || d?.url || null
     },
 
     instagram: {
-      path: (videoUrl) => `https://backend1.tioo.eu.org/igdl?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d) && d.length) {
@@ -106,7 +107,7 @@ module.exports = async (req, res) => {
     },
 
     gdrive: {
-      path: (videoUrl) => `https://backend1.tioo.eu.org/gdrive?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (d.data && (d.data.downloadUrl || d.data.download)) return d.data.downloadUrl || d.data.download;
