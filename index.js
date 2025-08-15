@@ -1,4 +1,5 @@
 const axios = require("axios");
+
 module.exports = async (req, res) => {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -56,7 +57,7 @@ module.exports = async (req, res) => {
     },
 
     twitter: {
-      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.url) && d.url.length) {
@@ -70,7 +71,7 @@ module.exports = async (req, res) => {
     },
 
     tiktok: {
-      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.video) && d.video.length) return d.video[0];
@@ -82,7 +83,7 @@ module.exports = async (req, res) => {
     },
 
     facebook: {
-      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => d?.HD || d?.hd || d?.Normal_video || d?.Normal_Video || d?.url || null
     },
 
@@ -105,7 +106,7 @@ module.exports = async (req, res) => {
     },
 
     gdrive: {
-      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (d.data && (d.data.downloadUrl || d.data.download)) return d.data.downloadUrl || d.data.download;
