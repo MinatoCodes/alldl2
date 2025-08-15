@@ -1,5 +1,5 @@
 const axios = require("axios");
-const baseUrl= "https://secret-alldl.vercel.app/api/alldl";
+const baseUrl = "https://secret-alldl.vercel.app/api/alldl";
 
 module.exports = async (req, res) => {
   // CORS
@@ -9,16 +9,19 @@ module.exports = async (req, res) => {
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // accept url from query or body (GET or POST)
+  // Accept URL from query or body
   const url = (req.query && req.query.url) || (req.body && req.body.url);
   let platform = (req.query && req.query.platform) || (req.body && req.body.platform) || null;
   platform = platform ? platform.toString().trim().toLowerCase() : null;
 
   if (!url) {
-    return res.status(400).json({ success: false, error: "Missing 'url' parameter. Provide ?url=<video-url> or { url } in body." });
+    return res.status(400).json({
+      success: false,
+      error: "Missing 'url' parameter. Provide ?url=<video-url> or { url } in body."
+    });
   }
 
-  // patterns to auto-detect platform from URL
+  // Regex patterns to detect platforms
   const patterns = {
     youtube: /(?:youtube\.com|youtu\.be)/i,
     twitter: /(?:twitter\.com|x\.com)/i,
@@ -28,20 +31,21 @@ module.exports = async (req, res) => {
     gdrive: /drive\.google\.com/i
   };
 
-  // platform handlers (YouTube uses the Priyanshi API + second request)
+  // Platform handlers
   const platforms = {
     youtube: {
-      path: (videoUrl) => `https://dev-priyanshi.onrender.com/api/youtubev2?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) =>
+        `https://dev-priyanshi.onrender.com/api/youtubev2?url=${encodeURIComponent(videoUrl)}`,
       extract: async (apiResponse) => {
         try {
-          // mediaUrl is at $.data.api.mediaItems[0].mediaUrl
           const mediaUrl = apiResponse?.data?.api?.mediaItems?.[0]?.mediaUrl;
           if (!mediaUrl) return null;
 
-          // fetch the mediaUrl (it returns JSON that contains response.fileUrl)
-          const mediaRes = await axios.get(mediaUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
+          const mediaRes = await axios.get(mediaUrl, {
+            headers: { "User-Agent": "Mozilla/5.0" },
+            timeout: 20000
+          });
 
-          // try common locations for the file URL
           const fileUrl =
             mediaRes?.data?.response?.fileUrl ||
             mediaRes?.data?.fileUrl ||
@@ -50,7 +54,6 @@ module.exports = async (req, res) => {
 
           return fileUrl || null;
         } catch (err) {
-          // don't throw — return null so main handler returns a consistent error response
           console.error("youtube extractor error:", err.message || err);
           return null;
         }
@@ -58,7 +61,7 @@ module.exports = async (req, res) => {
     },
 
     twitter: {
-      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.url) && d.url.length) {
@@ -72,24 +75,25 @@ module.exports = async (req, res) => {
     },
 
     tiktok: {
-      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d.video) && d.video.length) return d.video[0];
-        if (typeof d.video === "string" && d.video) return d.video;
+        if (typeof d.video === "string") return d.video;
         if (Array.isArray(d.url) && d.url.length) return d.url[0];
-        if (typeof d.url === "string" && d.url) return d.url;
+        if (typeof d.url === "string") return d.url;
         return null;
       }
     },
 
     facebook: {
-      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
-      extract: (d) => d?.HD || d?.hd || d?.Normal_video || d?.Normal_Video || d?.url || null
+      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      extract: (d) =>
+        d?.HD || d?.hd || d?.Normal_video || d?.Normal_Video || d?.url || null
     },
 
     instagram: {
-      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
         if (Array.isArray(d) && d.length) {
@@ -100,24 +104,25 @@ module.exports = async (req, res) => {
           }
         }
         if (Array.isArray(d.video) && d.video.length) return d.video[0];
-        if (typeof d.url === "string" && d.url) return d.url;
+        if (typeof d.url === "string") return d.url;
         if (Array.isArray(d.url) && d.url.length) return d.url[0];
         return null;
       }
     },
 
     gdrive: {
-      path: (videoUrl) => `{baseUrl}?url=${encodeURIComponent(videoUrl)}`,
+      path: (videoUrl) => `${baseUrl}?url=${encodeURIComponent(videoUrl)}`,
       extract: (d) => {
         if (!d) return null;
-        if (d.data && (d.data.downloadUrl || d.data.download)) return d.data.downloadUrl || d.data.download;
+        if (d.data && (d.data.downloadUrl || d.data.download))
+          return d.data.downloadUrl || d.data.download;
         if (d.downloadUrl) return d.downloadUrl;
         return null;
       }
     }
   };
 
-  // auto-detect platform if not provided
+  // Auto-detect platform if not provided
   if (!platform) {
     for (const key of Object.keys(patterns)) {
       if (patterns[key].test(String(url))) {
@@ -128,20 +133,32 @@ module.exports = async (req, res) => {
   }
 
   if (!platform || !platforms[platform]) {
-    return res.status(400).json({ success: false, error: "Unsupported or undetectable platform from provided URL." });
+    return res.status(400).json({
+      success: false,
+      error: "Unsupported or undetectable platform from provided URL."
+    });
   }
 
   const selected = platforms[platform];
 
   try {
-    const apiUrl = typeof selected.path === "function" ? selected.path(url) : `${selected.path}${encodeURIComponent(url)}`;
+    const apiUrl =
+      typeof selected.path === "function"
+        ? selected.path(url)
+        : `${selected.path}${encodeURIComponent(url)}`;
 
-    const apiResp = await axios.get(apiUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 20000 });
-    // always await the extractor (works for both sync and async)
+    const apiResp = await axios.get(apiUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 20000
+    });
+
     const downloadUrl = await selected.extract(apiResp.data);
 
     if (!downloadUrl) {
-      return res.status(404).json({ success: false, error: "Unable to extract file URL from platform API." });
+      return res.status(404).json({
+        success: false,
+        error: "Unable to extract file URL from platform API."
+      });
     }
 
     return res.json({
@@ -152,7 +169,10 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error("main handler error:", err.message || err);
-    return res.status(500).json({ success: false, error: err.message || "Server error" });
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Server error"
+    });
   }
 };
-    
+                                           
