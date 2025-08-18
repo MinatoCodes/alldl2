@@ -32,23 +32,13 @@ module.exports = async (req, res) => {
     switch (platform) {
       case "twitter": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        const data = apiResp.data;
-        if (data && Array.isArray(data.url)) {
-          for (const u of data.url) if (u?.hd) { downloadUrl = u.hd; break; }
-          if (!downloadUrl) for (const u of data.url) if (u?.sd) { downloadUrl = u.sd; break; }
-        } else if (data?.url?.hd) downloadUrl = data.url.hd;
-        else if (data?.url?.sd) downloadUrl = data.url.sd;
+        downloadUrl = apiResp.data?.url?.[0]?.hd || apiResp.data?.url?.[0]?.sd || apiResp.data?.url || null;
         break;
       }
 
       case "tiktok": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        const data = apiResp.data;
-        if (data?.video) {
-          if (Array.isArray(data.video) && data.video.length) downloadUrl = data.video[0];
-          else if (typeof data.video === "string") downloadUrl = data.video;
-        } else if (Array.isArray(data.url) && data.url.length) downloadUrl = data.url[0];
-        else if (typeof data.url === "string") downloadUrl = data.url;
+        downloadUrl = apiResp.data?.video?.[0] || apiResp.data?.video || apiResp.data?.url?.[0] || apiResp.data?.url || null;
         break;
       }
 
@@ -84,4 +74,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-                                 
+    
