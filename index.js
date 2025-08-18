@@ -32,13 +32,16 @@ module.exports = async (req, res) => {
 
     switch (platform) {
       case "youtube": {
-        const apiResp = await axios.get(
-          `https://dev-priyanshi.onrender.com/api/youtubev2?url=${encodeURIComponent(url)}`,
-          { headers: { "User-Agent": "Mozilla/5.0" } }
-        );
-        downloadUrl = apiResp.data?.api?.mediaItems?.[0]?.mediaUrl || null;
-        break;
-      }
+  const apiResp = await axios.get(
+    `https://dev-priyanshi.onrender.com/api/youtubev2?url=${encodeURIComponent(url)}`,
+    { headers: { "User-Agent": "Mozilla/5.0" } }
+  );
+
+  // Use previewUrl instead of mediaItems
+  downloadUrl = apiResp.data?.data?.api?.previewUrl || null;
+  break;
+}
+
 
       case "twitter": {
         const apiResp = await axios.get(
