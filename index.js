@@ -15,10 +15,10 @@ module.exports = async (req, res) => {
     });
   }
 
-  // Hardcoded platform detection
+  // Hardcoded platform detection including short TikTok links
   if (!platform) {
     if (/twitter\.com|x\.com/i.test(url)) platform = "twitter";
-    else if (/tiktok\.com|vm\.tiktok\.com/i.test(url)) platform = "tiktok";
+    else if (/tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com/i.test(url)) platform = "tiktok";
     else if (/facebook\.com|fb\.watch|share\/r\//i.test(url)) platform = "facebook";
     else if (/instagram\.com|instagr\.am/i.test(url)) platform = "instagram";
     else if (/drive\.google\.com|docs\.google\.com\/uc/i.test(url)) platform = "gdrive";
@@ -32,13 +32,22 @@ module.exports = async (req, res) => {
     switch (platform) {
       case "twitter": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        downloadUrl = apiResp.data?.url?.[0]?.hd || apiResp.data?.url?.[0]?.sd || apiResp.data?.url || null;
+        const data = apiResp.data;
+        downloadUrl = data?.url?.[0]?.hd 
+                   || data?.url?.[0]?.sd 
+                   || data?.url?.hd 
+                   || data?.url?.sd 
+                   || data?.url 
+                   || null;
         break;
       }
 
       case "tiktok": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        downloadUrl = apiResp.data?.video?.[0] || apiResp.data?.video || apiResp.data?.url?.[0] || apiResp.data?.url || null;
+        const data = apiResp.data;
+        downloadUrl = (Array.isArray(data?.video) ? data.video[0] : data?.video) 
+                   || (Array.isArray(data?.url) ? data.url[0] : data?.url) 
+                   || null;
         break;
       }
 
@@ -74,4 +83,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-    
+      
