@@ -32,27 +32,38 @@ module.exports = async (req, res) => {
     switch (platform) {
       case "twitter": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        const urls = Array.isArray(apiResp.data.url) ? apiResp.data.url : [apiResp.data.url];
-        for (const u of urls) if (u?.hd) { downloadUrl = u.hd; break; }
-        if (!downloadUrl) for (const u of urls) if (u?.sd) { downloadUrl = u.sd; break; }
+        const data = apiResp.data;
+        if (data && Array.isArray(data.url)) {
+          for (const u of data.url) if (u?.hd) { downloadUrl = u.hd; break; }
+          if (!downloadUrl) for (const u of data.url) if (u?.sd) { downloadUrl = u.sd; break; }
+        } else if (data?.url?.hd) downloadUrl = data.url.hd;
+        else if (data?.url?.sd) downloadUrl = data.url.sd;
         break;
       }
+
       case "tiktok": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        if (Array.isArray(apiResp.data.video) && apiResp.data.video.length) downloadUrl = apiResp.data.video[0];
-        else if (typeof apiResp.data.video === "string") downloadUrl = apiResp.data.video;
+        const data = apiResp.data;
+        if (data?.video) {
+          if (Array.isArray(data.video) && data.video.length) downloadUrl = data.video[0];
+          else if (typeof data.video === "string") downloadUrl = data.video;
+        } else if (Array.isArray(data.url) && data.url.length) downloadUrl = data.url[0];
+        else if (typeof data.url === "string") downloadUrl = data.url;
         break;
       }
+
       case "facebook": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
         downloadUrl = apiResp.data?.data?.HD || apiResp.data?.data?.Normal_video || null;
         break;
       }
+
       case "instagram": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
         downloadUrl = apiResp.data?.data?.result?.[0]?.url || null;
         break;
       }
+
       case "gdrive": {
         const apiResp = await axios.get(`https://secret-alldl.vercel.app/api/alldl?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": "Mozilla/5.0" } });
         downloadUrl = apiResp.data?.data?.result?.downloadUrl || null;
@@ -62,7 +73,6 @@ module.exports = async (req, res) => {
 
     if (!downloadUrl) return res.status(404).json({ success: false, error: "Unable to extract download URL." });
 
-    // Final JSON response
     return res.json({
       success: true,
       creator: "MinatoCodes",
@@ -74,4 +84,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 };
-  
+                                 
